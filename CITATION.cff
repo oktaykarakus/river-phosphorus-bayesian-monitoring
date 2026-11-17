@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this code or these results, please cite the paper listed under preferred-citation."
+title: "Where We Monitor Matters: Monitoring-Network Composition and Bayesian River-Network Inference for Phosphorus Exceedance in English Rivers (code and result summaries)"
+type: software
+license: MIT
+authors:
+  - family-names: "Karakuş"
+    given-names: "Oktay"
+    affiliation: "Department of Computer Science and Informatics, Cardiff University"
+  - family-names: "Eyüpoğlu"
+    given-names: "Can"
+    affiliation: "Department of Computer Science and Informatics, Cardiff University; Department of Computer Engineering, Turkish Air Force Academy, National Defence University"
+keywords:
+  - river water quality
+  - phosphorus
+  - monitoring network design
+  - preferential sampling
+  - spatial stream-network models
+  - Bayesian hierarchical models
+  - selection sensitivity
+preferred-citation:
+  type: article
+  status: in-preparation
+  title: "Where We Monitor Matters: Monitoring-Network Composition and Bayesian River-Network Inference for Phosphorus Exceedance in English Rivers"
+  authors:
+    - family-names: "Karakuş"
+      given-names: "Oktay"
+    - family-names: "Eyüpoğlu"
+      given-names: "Can"
+  journal: "Ecological Indicators"
