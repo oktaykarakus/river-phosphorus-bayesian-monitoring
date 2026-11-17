@@ -1,0 +1,60 @@
+# Phase 3C-F addendum T1 — settings, written 2026-11-14 21:40 GMT (file mtime 21:40:25; T1 started 21:40:53), after the feasibility check (t1_feasibility.json) and BEFORE the
+# T1 sampling segment was started. Approved by the author on 2026-11-14 (T1 brief). Nothing here changes the model, priors, data or estimands.
+
+approval: "author approval of P3CF_07 T1, 2026-11-14 (T1 brief): 2,500 additional post-warmup draws per chain; max additional compute 5 CPU-h"
+
+original_fit:
+  tag: main_R3
+  csvs: "~/track_a_scratch/phase_03c_f/fit_main_R3/track_a_m2rn_r3-20261114194014_{1..4}.csv (write-protected; checksums in provenance/original_fit_checksums.sha256)"
+  draws_per_chain: 2500
+
+continuation:
+  kind: "NEW SAMPLING SEGMENT initialised at the previous chain endpoints with the adapted kernel fixed — NOT an exact (bit-identical) continuation"
+  reason_not_exact: "CmdStan does not save or accept the RNG state; adapted step size and metric survive to 6 significant digits; endpoint to 9 (t1_feasibility.json)"
+  stan_file: "phase_03c_f/stan/track_a_m2rn_r3.stan (SHA 11402421...6542af; executable unchanged)"
+  data: "~/track_a_scratch/phase_03c_f/inputs/data.json (same file and hash as main_R3)"
+  chains: 4                      # chain k continues main_R3 chain k
+  inits: "~/track_a_scratch/phase_03c_f/inputs_T1/init_k.json = final main_R3 draw of chain k (parameters block, 9 s.f.)"
+  inv_metric: "inputs_T1/inv_metric_k.json = chain k's adapted diag_e inverse metric"
+  step_size: "inputs_T1/stepsize.json = chain k's adapted step size (0.0348513, 0.031247, 0.0270042, 0.0304155)"
+  iter_warmup: 0
+  adapt_engaged: false
+  iter_sampling: 2500
+  max_treedepth: 10
+  sig_figs: 9
+  seed: 20261123                 # as pre-specified in P3CF_07 §3
+  output_dir: "~/track_a_scratch/phase_03c_f/fit_T1_segment"
+  runner: "caffeinate -dimsu; addendum_T1/scripts/t1_02_run.py + t1_monitor.py"
+
+budget:
+  total_cpu_h: 5.0               # all T1 CmdStan compute: feasibility (log_prob + 3-iteration smoke run) + the segment
+  feasibility_cpu_min_used: 0.55 # 32 CPU-s (t1_01_feasibility.py, whole process incl. children)
+  segment_hard_cap_cpu_min: 299  # 300 - feasibility; monitor terminates the chains when cumulative CPU (all chain PIDs ever seen) reaches it
+  projection_stop: "from 60 CPU-min onward: projected total = CPU so far + remaining iterations x CPU per iteration over the last >= 20 CPU-min;
+                    stop if projected > 1.05 x hard cap (clearly infeasible); otherwise run to completion or to the hard cap"
+  expected_cpu_min: 283          # 10,000 iterations x 1.70 CPU-s (main_R3 sampling-phase rate); rate drifted 1.58 -> 1.89 during main_R3
+  post_processing: "Python diagnostics / Delta_T / PPC are reported separately, as in Phase 3C-F (not CmdStan sampling compute)"
+  if_stopped: "no gate evaluation is presented as final; T1 is reported as not completed and the decision is HOLD — REMAINING CONVERGENCE FAILURE;
+               no automatic re-run or extension"
+
+combination:
+  rule: "per chain, the 2,500 main_R3 draws followed by the 2,500 T1 draws, in order -> 4 chains x 5,000; ALL draws used; no thinning, no discarding"
+  justification: "both segments use a pi-invariant NUTS kernel; the segment starts at the endpoint of the original chain (to 9 s.f.)"
+
+gates: "phase_03c_f/config/phase3cf_settings.yaml main_gates, unchanged, applied to the combined 4 x 5,000 draws, implemented exactly as in
+        phase_03c_f/scripts/p3f_04_main_diagnostics.py (R-hat < 1.01 rank-normalised split over all hyperparameters, log scales and Delta_T;
+        bulk and tail ESS >= 400; divergences <= 0.1%; E-BFMI >= 0.3 each chain; Delta_T chain-median range <= 0.5 posterior SD;
+        latent R-hat <= 1.02; PPC site-year sample-mean exceedance by network inside the 90% replicate interval)"
+segment_only_diagnostics: "same statistics on the 4 x 2,500 T1 draws alone, reported (not the decision basis)"
+additional_reports: "an 8-chain view (each segment as its own chain) is reported as a robustness display only; it is not a gate"
+
+decision:
+  all_gates_pass: "GO — FINAL VALIDATION AND MANUSCRIPT PREPARATION"
+  any_gate_fails: "HOLD — REMAINING CONVERGENCE FAILURE (parameter, value and scientific consequence stated; no further extension)"
+
+seeds:
+  stan_T1: 20261123
+  smoke: 20261199
+  ppc: 20261122                  # unchanged from Phase 3C-F
+
+# Post-launch edit (21:42): header timestamp corrected from a mistyped "21:47" to the true write time; no setting was changed.

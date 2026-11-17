@@ -1,0 +1,150 @@
+# Track A Phase 3C-R — river-network model correction and verification.
+# Written 2026-11-12, BEFORE any Phase 3C-R model fit. Everything not listed here is inherited unchanged from
+# phase_03c/config/phase3c_settings.yaml (priors, seeds, folds, scores, HSGP basis), which is read, never written.
+version: "3CR-1.0"
+date: "2026-11-12"
+
+scratch_dir: "~/track_a_scratch/phase_03c_r"       # CmdStan CSVs and draw archives (override: TRACK_A_SCRATCH_3CR)
+phase3c_scratch: "~/track_a_scratch/phase_03c"     # frozen Phase 3C draws (read only)
+
+# ------------------------------------------------------------------ frozen reference (P3C, not refitted)
+frozen_reference:
+  model: "M2-RN (Phase 3C pilot, tag m2rn_full): centred site levels (C4), marginalised water-body effects, tail-up DAG"
+  program: "phase_03c/stan/track_a_m2rn.stan"
+  settings: "phase_03c/config/phase3c_settings.yaml"
+  m1s2_reference: "phase_03b m1s2_full (frozen; via phase_03c/reference_m1s2)"
+
+# ------------------------------------------------------------------ candidates (P3CR_01)
+# All candidates keep every Phase 3C prior, the censored likelihood, heteroscedastic SD, S5c seasonality, WMA and catchment
+# effects, the HSGP field (c_b 1.25, m 48 x 59), the tail-up DAG (normalised AFV weights) and the global network offset.
+candidates:
+  R0: {site_nc: 0, use_wb: 1, role: "frozen Phase 3C parameterisation (centred site levels); reference only, not refitted on full data"}
+  R1: {site_nc: 1, use_wb: 1, role: "REPARAMETERISATION of M2-RN: non-centred site levels; water-body covariance kept exactly (symmetric square root)"}
+  R2: {site_nc: 1, use_wb: 0, role: "SUBSTANTIVE CHANGE: M2-RN without the water-body effect; non-centred site levels"}
+  R3: {role: "total site-level SD x Dirichlet shares (Phase 2B fallback_variance_partition); ONLY if R1 and R2 both fail the gates"}
+
+# ------------------------------------------------------------------ verification fits (P3CR_02)
+verification:
+  realsub: {regions: [Thames, Southern], chains: 4, iter_warmup: 500, iter_sampling: 500, adapt_delta: 0.95}   # as Phase 3C realsub_m2rn
+  simulation:
+    design: "realsub design (Thames + Southern): real sites, dates, limits, network, hierarchy, coordinates"
+    truth_regime: "Phase 3C full-data posterior regime where the funnel arose: sigma_tu 0.85, rho_tu 300 km, sigma_u 0.16, sigma_B 0.16"
+    seed: 20261131
+    sampling: {chains: 4, iter_warmup: 500, iter_sampling: 500, adapt_delta: 0.95}
+  full_screen: {chains: 4, iter_warmup: 500, iter_sampling: 500, adapt_delta: 0.95}   # full data, random inits
+  inits: "Stan default random initial values (no information from any posterior)"
+
+# Screening gates (subset and full-data screen). Hyperparameters = sigma_u, sigma_B, sigma_tu, rho_tu, sigma_A, sigma_C,
+# sigma_w, rho, sigma_om, sigma, lambda, tau_sig, sigma_e, tau_s, delta_bar, alpha, beta, gamma, harm.
+screen_gates:
+  max_divergence_share: 0.0025
+  max_rhat_hyper: 1.02
+  min_bulk_ess_hyper: 100
+  min_ebfmi_each_chain: 0.30
+  stuck_chain_rule: "no chain with adapted step size < 0.5 x median of the other chains"
+
+# Full-data gates (P3CR_03). Key quantities = hyperparameters above (rho_tu on the log scale) + Delta_T at 0.05/0.10/0.20.
+full_gates:
+  max_rhat_key: 1.01
+  min_bulk_ess_key: 400
+  min_tail_ess_key: 400
+  max_divergence_share: 0.001        # 'no material divergences': <= 6 of 6,000 and not concentrated in one region of the posterior
+  min_ebfmi_each_chain: 0.30
+  delta_T_chain_spread_rule: "range of the 4 chain medians of Delta_T <= 0.5 posterior SD at every threshold"
+
+selection_rule: >
+  R1 is an exact reparameterisation of the approved M2-RN, so if it passes the gates it is selected (no substantive model
+  change). R2 is selected only if R1 fails and R2 passes; if both pass, R2 is reported as a structural sensitivity of
+  Delta_T. R3 is investigated only if both fail. Runtime is recorded but is not a selection criterion.
+
+main_fit: {chains: 4, iter_warmup: 1000, iter_sampling: 1500, adapt_delta: 0.95, max_treedepth: 10, seed: 20261112}
+
+# ------------------------------------------------------------------ river range and HSGP (P3CR_04)
+river_range:
+  prior: "unchanged: rho_tu ~ InvGamma(1.4346, 23.967) km (median 21 km; P(rho > 300 km) = 0.02)"
+  sensitivity: >
+    no prior is narrowed to aid convergence. Prior sensitivity by Pareto-smoothed importance reweighting of the corrected
+    posterior to (a) InvGamma with P(rho > 300 km) = 0.10 (median 46 km) and (b) log-uniform on [2, 5000] km; refit only if
+    Pareto k > 0.7. Report Delta_T, delta, sigma_tu under each prior.
+hsgp:
+  boundary_factor: 1.25
+  m: [48, 59]
+  rho_min_km: 12.0
+  rho95_max_km: 55.0                 # CORRECTED rule (P3C_03 §2): error <= 0.05 at c_b 1.25 only up to ~55 km
+  enlarged_basis: {boundary_factor: 1.5, m: [58, 71]}
+  enlarged_trigger: "posterior rho 95% quantile > 50 km (approaching 55 km): evaluate and, if > 55 km, refit with the enlarged basis"
+
+# ------------------------------------------------------------------ hydrological residual diagnostics (P3CR_04)
+residual_flow:
+  pairs: "Phase 2B pairs: Euclidean distance < 25 km, different water bodies; flow-connected vs not (as P3A_06 §4)"
+  stratification: "management catchment: same vs different; stratified excess = sum_s w_s (mean_fc,s - mean_nc,s), w_s = share of connected pairs in stratum s"
+  quantities:
+    raw: "unstratified excess on q = vC + vB + u + v_tu (site-level variation beyond fixed effects, WMA and the Euclidean field)"
+    catchment_attributable: "unstratified minus stratified excess (composition of shared catchments)"
+    residual: "stratified excess on vB + u (and on vC + vB + u) after the river term and catchment effects"
+  escalation_rule: "residual flow dependence present if the stratified excess on vB + u has posterior median > 0.10 (SC3)"
+
+# ------------------------------------------------------------------ catchment-held-out validation (P3CR_05)
+validation:
+  fold: C1                            # phase_03c definition: Phase 3B cat80 split, seed 20261120 (unchanged)
+  models: ["M1-S2 (frozen program: use_tu 0, centred, marginal water body)", "selected corrected M2-RN"]
+  sampling: {chains: 4, iter_warmup: 600, iter_sampling: 500, adapt_delta: 0.95, max_treedepth: 10}   # as Phase 3C W folds
+  scores: "phase_03c p3c_folds.heldout_scores (unchanged): site-joint ELPD (primary), pointwise LPD, PIT, site-year sample-mean Brier/log scores, 90% coverage"
+  comparison_rule: "as Phase 3C: corrected M2-RN preferred if pooled site-joint ELPD difference > 2 SE with no loss of calibration; |z| < 2 = no detectable difference"
+  stratify_by: "held-out site has / has not a flow-connected TRAINING site within 25 km river distance"
+
+# ------------------------------------------------------------------ compute budgets (CPU-hours, declared before fitting)
+compute_budget_cpu_hours:
+  verification: 10.0                 # unit-test fits, simulations, real-subset fits, full-data screens
+  main_corrected_fit: 10.0           # brief: stop and report if insufficient
+  validation_c1_m2rn: 6.0
+  validation_c1_m1s2_refit: 3.0      # separately tracked (brief)
+  sensitivity_refits: 0.0            # only if a PSIS reweighting fails (k > 0.7) or HSGP rule requires; needs a new budget line
+
+# ------------------------------------------------------------------ ADDENDUM A1 (2026-11-13, written after the R1/R2 screens,
+# BEFORE any R3 fit). R1 and R2 failed the screening gates on the real subset / simulation / full screen (P3CR_02), so R3 is
+# investigated as pre-specified. R3 form: exact marginalisation of the site (u), water-body (B) and tail-up (TU) effects
+# (theta centred, block-diagonal MVN over river-tree / water-body components) with (sigma_u, sigma_B, sigma_tu) sampled as
+# sigma_site x simplex shares; the ORIGINAL half-normal priors are kept via the Jacobian (the Phase 2B Dirichlet(2,2,2)
+# fallback prior is NOT used), so R3 is a reparameterisation of the approved model (tests U6-U9).
+addendum_A1:
+  verification_budget_status: "verification line (10 CPU-h) exceeded by the R1/R2 full-data screens (~12.6 CPU-h): recorded, not hidden"
+  r3_verification: {simulation: "realsub design, funnel regime (same data set, seed 20261131)", realsub: "Thames + Southern", sampling: "4 x (500 + 500)",
+                    extra_budget_cpu_h: 4.0}
+  r3_full_screen: "NOT run separately; the main corrected fit (budget 10 CPU-h, guarded) is the full-data test of R3"
+  selection_rule_r3: "R3 selected if it passes the screening gates on the simulation and the real subset; the main fit must then pass the full_gates"
+  main_fit_guard: "fit stopped when the chains' summed CPU time reaches 600 CPU-min; partial draws reported as a failed budget"
+
+# ADDENDUM A2 (2026-11-13, after sim_R3 / realsub_R3 at adapt_delta 0.95, BEFORE the reruns): R3 passed every screening gate
+# except divergences (sim 38/2000 = 1.9%, 28 in one chain; realsub 7/2000 = 0.35%), which were not concentrated in any parameter
+# region. Sampler-only remedy: rerun both at adapt_delta 0.99 (tags sim_R3_ad99, realsub_R3_ad99), same seeds and data. If both
+# pass all screening gates, the main fit uses adapt_delta 0.99 (model and priors unchanged). Budget: within addendum A1's 4 CPU-h.
+addendum_A2: {adapt_delta_r3: 0.99, reruns: [sim_R3_ad99, realsub_R3_ad99]}
+
+# ADDENDUM A3 (2026-11-13 23:30, BEFORE the main corrected fit). Screening outcome: R3 at adapt_delta 0.99 passes every screening
+# gate on the real subset (1/2000 divergences) but NOT on the funnel-regime simulation (30/2000 divergences, concentrated at
+# sigma_u < 0.02 where the marginal site covariance becomes near-singular); all other gates pass there. No candidate passes every
+# screening gate. R3 is taken to the full-data fit as the CONDITIONALLY selected candidate (best by every diagnostic; same model
+# and priors as the approved M2-RN); the pre-specified full-data gates decide. Benchmark: 18.5 ms per gradient on the full data,
+# so the pre-specified 4 x (1000 + 1500) at adapt_delta 0.99 projects to ~13-15 CPU-h > the 10 CPU-h budget. Main fit therefore:
+main_fit_r3: {chains: 4, iter_warmup: 800, iter_sampling: 1000, adapt_delta: 0.98, max_treedepth: 10, seed: 20261112, inits: random,
+              cpu_cap_min: 600, note: "post-warmup draws 4,000; the ESS >= 400 bulk/tail gates still apply"}
+
+# ADDENDUM A4 (2026-11-14, after the main R3 fit was stopped for budget, BEFORE any C1 fit).
+# The corrected full-data fit could not be completed within its 10 CPU-h budget (P3CR_03), so no parameterisation of M2-RN has passed
+# the full-data gates. Fold C1 is nevertheless run (it was explicitly requested and pre-specified) as follows:
+#   cv_C1_m1s2 : frozen Phase 3C executable, use_tu 0 (= M1-S2; separately tracked line validation_c1_m1s2_refit, 3 CPU-h)
+#   cv_C1_R0   : frozen Phase 3C executable, use_tu 1 (= M2-RN; the same model as R1 / R3, sampled with the frozen parameterisation,
+#                exactly as the Phase 3C W1 / W2 folds, so the three folds are comparable; line validation_c1_m2rn, 6 CPU-h)
+# Both: 4 x (600 + 500), adapt_delta 0.95, seed 20261112, random inits, identical training data. Held-out predictions depend on the
+# sum of the site-level terms (identified), not on the variance partition (not converged); this caveat is reported with the scores.
+addendum_A4: {c1_m2rn_parameterisation: "R0 (frozen Phase 3C program)", reason: "corrected R1/R3 fold fits exceed the 6 CPU-h line; comparability with W1/W2"}
+
+# ADDENDUM A5 (2026-11-14 15:55, BEFORE the warm-started main fit). Diagnostic benchmark (bench_full_R3_init_screen, 1 chain,
+# 0.59 CPU-h, charged to the main line): from a typical-set init R3 samples the full data at step size 0.043, tree depth 7,
+# 127 leapfrog steps, 0 divergences (~2.35 s per iteration); the cost of the stopped fit was early warmup with the identity metric
+# from random inits. Second main-fit attempt within the SAME 10 CPU-h line (used so far: 1.60 + 2.88 + 0.59 = 5.07 CPU-h; cap for
+# this attempt = 295 CPU-min): inits = median-lp draw of each of the 4 R1-screen chains (same model and data); initial diagonal
+# inverse metric = screen posterior variances on R3's unconstrained scale; full windowed adaptation still runs.
+# The 4 chains start in the typical set, so R-hat checks mixing, not convergence from over-dispersed starts (stated in P3CR_03).
+addendum_A5: {tag: full_R3w, iter_warmup: 300, iter_sampling: 1000, adapt_delta: 0.98, step_size: 0.04, seed: 20261112, cpu_cap_min: 295}

@@ -1,0 +1,86 @@
+# Track A — Phase 3C-F: computational closure and model-selection decision.
+# Written 2026-11-14, BEFORE any Phase 3C-F fit or benchmark. Earlier phases (pilot_01 ... phase_03c_r) are read-only.
+scratch_dir: "~/track_a_scratch/phase_03c_f"          # CmdStan CSVs and draw archives (override: TRACK_A_SCRATCH_3CF)
+phase3cr_scratch: "~/track_a_scratch/phase_03c_r"     # Phase 3C-R draws and the A5 partial chains (read only)
+
+model:
+  name: "M2-RN, parameterisation R3 (exact marginalisation of site + water-body + tail-up; sigma_site x simplex shares; original
+         half-normal priors kept via the Jacobian)"
+  stan_file: stan/track_a_m2rn_r3.stan                 # byte-identical copy of phase_03c_r/stan/track_a_m2rn_r3.stan (checked)
+  data: "full data, Phase 3C-R build_data(model_config('R3')) — unchanged"
+  seeds: {stan: 20261115, ppc: 20261122, prediction: 20261114}
+
+# ------------------------------------------------------------------ budgets (CPU-hours; declared before running)
+compute_budget_cpu_hours:
+  feasibility_benchmarks: 1.0        # strictly limited new runs only (re-analysis of existing outputs is not a fit)
+  main_r3_fit: 12.0                  # separately recorded maximum (brief); ONE fit, no restarts
+  sensitivity_refits: 0.0            # none planned; PSIS reweighting only. Any refit needs a new line and approval
+
+# ------------------------------------------------------------------ feasibility gate (all must hold before the main fit)
+feasibility_gate:
+  projected_cpu_h_max: 9.0           # projected total for the planned fit (observed per-iteration costs incl. adaptation) <= 0.75 x 12
+  warmup_leapfrog_median_after_iter_25_max: 255     # benchmark from dispersed inits: no persistent tree-depth saturation
+  stuck_chain_rule: "no chain's adapted step size < 0.5 x median of the others"
+  ess_projection: "partition ESS per draw (A5 partial chains) x planned draws >= 1.5 x 400 for sigma_u, sigma_B, sigma_tu, log rho_tu, shares"
+  if_fail: "do not launch; report the precise obstacle"
+
+# ------------------------------------------------------------------ main-fit gates (Phase 3C-R full_gates, plus PPC)
+main_gates:
+  max_rhat: 1.01                     # all hyperparameters incl. shares, sigma_u, sigma_B, sigma_tu, log rho_tu, and Delta_T at 3 thresholds
+  min_ess_bulk: 400
+  min_ess_tail: 400
+  max_divergence_share: 0.001
+  min_ebfmi_each_chain: 0.30
+  delta_T_chain_median_range_max_sd: 0.5
+  latent_max_rhat_report: 1.02       # reported; latent site levels judged against this
+  ppc: "site-year sample-mean exceedance calibration at 0.05/0.10/0.20 (observed rate inside the 90% replicate interval) and the
+        single-measurement upper-tail statistics (p95, p99, max per network), as Phase 3B p3b_ppc"
+  if_fail: "stop and report the precise failure; a partially converged fit is not presented as final"
+
+monitoring:
+  progress_source: "per-chain stdout iteration lines AND CSV draw counts (both read; Phase 3C-R erratum E1)"
+  checkpoint_every_min: 15
+  projection_stop: "after >= 60 CPU-min, stop if projected total CPU > 12 CPU-h"
+  hard_cap_cpu_min: 720
+
+# ------------------------------------------------------------------ analyses using existing or main-fit draws (no new fits)
+identifiability:
+  conditional_profiles: "exact conditional log density of theta given (sigma_site, shares, rho_tu) along rho_tu in [10, 5000] km and
+                         over the share simplex, averaged over posterior draws (structural vs data-limited)"
+  psis_priors:
+    rho_tu: ["InvGamma with P(rho > 300 km) = 0.10 (Phase 3C-R)", "log-uniform [2, 5000] km"]
+    variance: ["half-normal scales x 0.5", "half-normal scales x 2", "Dirichlet(2,2,2) on shares with the same sigma_site prior (Phase 2B fallback)"]
+  pareto_k_max: 0.7
+
+prediction_settings:
+  A: "new sites within monitored river networks — Phase 3C W1 + W2 (water-body-blocked folds)"
+  B: "entirely unmonitored catchments — Phase 3C-R C1 (catchment-blocked fold)"
+  rule: "never pooled; catchment-clustered SE for C1 (16 catchments) reported beside the site-level SE"
+
+upper_tail:
+  approach: "existing posterior draws + PPC only; quantify the effect of the light single-measurement upper tail on annual
+             arithmetic-mean exceedance and on Delta_T (MS - RSN); no heavy-tailed refit in this phase"
+
+# ADDENDUM F1 (2026-11-14 19:30, after re-analysing the Phase 3C-R A5 partial chains, BEFORE any new run).
+# A5 evidence (diagnostics/feasibility_a5_evidence.json): with a supplied metric, warmup cost ~2.2 CPU-s/iteration (= sampling),
+# step 0.031-0.034, 127 leapfrog steps, accept 0.97-0.98, 0 divergences; partition bulk ESS per draw >= 0.07 (sigma_om lowest, 0.069;
+# share_u 0.11). Planned main fit (chosen so the lowest projected bulk ESS >= 1.5 x 400 = 600):
+main_fit:
+  tag: main_R3
+  chains: 4
+  iter_warmup: 300                   # full windowed adaptation (75 / 25-50-100 / 50), started from the pilot metric
+  iter_sampling: 2500                # projected sigma_om bulk ESS ~ 0.069 x 10,000 = 690
+  adapt_delta: 0.98
+  max_treedepth: 10
+  inits: "4 over-dispersed R1-screen draws (corners of share_u x share_B x log rho_tu), p3f_02_prepare_inputs.py"
+  metric: "pilot: geometric mean of the 4 adapted A5 metrics; initial step = median A5 step (0.0329)"
+  projected_cpu_h: 7.2               # 4 x 2,800 x 2.3 CPU-s
+benchmark:
+  tag: bench_disp
+  settings: "exactly the main-fit settings (same inits, metric, seed), save_warmup on, stopped at 30 CPU-min by the monitor"
+  purpose: "warmup cost per iteration and tree depth from the over-dispersed inits; the benchmark is discarded (not continued)"
+
+# ADDENDUM F2 (2026-11-14 19:40, after the benchmark, BEFORE the main fit). Feasibility gate PASSED (diagnostics/feasibility_gate.json):
+# projected 7.25 CPU-h <= 9; warmup leapfrog median 127 after iteration 25 (no tree-depth saturation); no stuck chain; projected
+# minimum bulk ESS 693 >= 600. Benchmark used 30.5 CPU-min (feasibility line). Main fit launched exactly as main_fit above
+# (scripts/run_guarded.sh main_R3 300 2500 720 --projection); one run, no restarts.

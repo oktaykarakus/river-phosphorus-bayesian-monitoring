@@ -1,0 +1,53 @@
+# Track A Phase 4B: final validation fits. Written BEFORE any new fit (see reports/VF_00_feasibility_and_budget.md).
+# Every fit reads the authoritative data tables; nothing in an earlier phase is written.
+scratch_dir: "~/track_a_scratch/phase_04_vf"
+inputs_main: "~/track_a_scratch/phase_03c_f/inputs"        # pilot metric + over-dispersed inits of the authoritative main fit
+exe_r3: "../phase_03c_f/stan/track_a_m2rn_r3"               # authoritative R3 executable (run, never rebuilt)
+exe_m1s2: "../phase_03c/stan/track_a_m2rn"                  # frozen Phase 3C executable, use_tu = 0 (the M1-S2 comparator program)
+
+approved_budget_cpu_h: 22.0                                 # approved by the author 2026-11-15 after VF_00 (brief: 15.9)
+campaign_cap_cpu_h: 25.0
+fit_caps_cpu_h: {vf_W1_R3: 4.7, vf_W2_R3: 4.7, vf_C1_R3: 4.7, vf_C2_R3: 4.7, vf_C2_m1s2: 2.7, vf_RSN_R3: 4.0, vf_M2I_R3: 5.1}
+fit_central_cpu_h: {vf_W1_R3: 3.15, vf_W2_R3: 3.12, vf_C1_R3: 3.16, vf_C2_R3: 3.15, vf_C2_m1s2: 1.82, vf_RSN_R3: 2.66, vf_M2I_R3: 3.40}
+seeds: {stan_r3: 20261115, stan_m1s2: 20261112, scoring: 20261114, smoke: 20261116}
+
+r3_sampling:                                                 # identical to the authoritative main fit except length
+  chains: 4
+  parallel_chains: 2                                         # P4-V0 execution rule (two at a time)
+  iter_warmup: 300                                           # windowed adaptation from the pilot metric, as main_R3
+  iter_sampling: 1000
+  adapt_delta: 0.98
+  max_treedepth: 10
+m1s2_sampling:                                               # identical to the existing C1 comparator fit (cv_C1_m1s2)
+  chains: 4
+  parallel_chains: 2
+  iter_warmup: 600
+  iter_sampling: 500
+  adapt_delta: 0.95
+  max_treedepth: 10
+
+fits:                                                        # tag: purpose
+  vf_W1_R3: {kind: fold, fold: W1, model: R3}
+  vf_W2_R3: {kind: fold, fold: W2, model: R3}
+  vf_C1_R3: {kind: fold, fold: C1, model: R3}
+  vf_C2_R3: {kind: fold, fold: C2, model: R3}
+  vf_C2_m1s2: {kind: fold, fold: C2, model: m1s2}
+  vf_RSN_R3: {kind: rsn_only, model: R3}
+  vf_M2I_R3: {kind: m2i, model: R3}
+
+existing_comparators:                                        # M1-S2 fold fits reused unchanged (same held-out observations)
+  W1: "~/track_a_scratch/phase_03c/cv_W1_m1s2_draws.npz"
+  W2: "~/track_a_scratch/phase_03c/cv_W2_m1s2_draws.npz"
+  C1: "~/track_a_scratch/phase_03c_r/cv_C1_m1s2_draws.npz"
+
+m2i:                                                         # Phase 2B model_specification.md: ms x z_l and ms x z_e, N(0, 0.25^2)
+  columns: ["ms_x_z_logarea", "ms_x_z_edm"]
+  prior_sd: 0.25
+
+scoring:
+  n_draws: 400                                               # as the frozen Phase 3C / 3C-R scoring
+  neighbour_km: 25
+
+adequacy:
+  fold: {max_rhat: 1.05, min_ebfmi: 0.3, mcse_share_of_clustered_se: 0.10}   # P4-V0 (corrected)
+  sensitivity: {max_rhat_hyper: 1.05, max_rhat_target: 1.01, min_ess_target: 400, max_divergence_share: 0.001, min_ebfmi: 0.3}

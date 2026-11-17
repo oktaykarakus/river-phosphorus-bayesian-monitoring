@@ -1,0 +1,4 @@
+# Phase 3A deviations from phase_02b/specifications/priors_and_settings.yaml (documented in P3A_03 §2).
+# Only changes justified by physical scale / prior predictive behaviour; none tuned to network contrasts.
+harmonics_national:
+  sigma: 0.3        # was 0.5; prior predictive C5 failed (95th pct national monthly-mean ratio 32x > 20x)

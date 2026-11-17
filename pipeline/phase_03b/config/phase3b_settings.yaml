@@ -1,0 +1,65 @@
+# Track A Phase 3B — settings. Frozen priors: phase_02b/specifications/priors_and_settings.yaml
+# plus the Phase 3A override (phase_03a/config/prior_overrides.yaml: national harmonics SD 0.3; Addendum C2).
+version: "3B-1.0"
+date: "2026-11-12"
+
+# Local SSD scratch for temporary CmdStan CSVs (Addendum decision C6). Override with env TRACK_A_SCRATCH.
+scratch_dir: "~/track_a_scratch/phase_03b"
+
+seeds:
+  stan: 20261112           # same as Phase 2B / 3A
+  subsets: 20261120
+  simulation: 20261121
+  ppc: 20261122
+
+sampling:
+  chains: 4
+  iter_warmup: 1000
+  iter_sampling: 1000
+  adapt_delta: 0.9
+  max_treedepth: 10
+
+# Addendum C1 measurement-SD model priors (as Phase 3A M0-H)
+hetero:
+  lambda_sd: 0.25
+  tau_sig_sd: 0.5
+
+# Decision C3: site-year SD prior comparison (Half-Normal scale). 'primary' unless evidence requires otherwise.
+sigma_om_priors:
+  primary: 0.30            # Phase 2B specification
+  tight: 0.15              # comparison only
+
+# Seasonal-structure candidates (Stage 3). Regional deviations: first harmonic, N(0, tau_s^2), tau_s ~ Half-N(0, 0.2^2) (MS-§2, §6).
+# Covariate modulation: fixed effects on harmonic coefficients, N(0, 0.2^2) (same scale as tau_s); not in Phase 2B -> exploratory.
+seasonal_candidates:
+  S0_national:        {regional: 0, modifiers: [],                 harmonics_modulated: 0}
+  S1_regional:        {regional: 1, modifiers: [],                 harmonics_modulated: 0}
+  S2_regional_network: {regional: 1, modifiers: [ms],              harmonics_modulated: 4}
+  S3_regional_size:   {regional: 1, modifiers: [z_logarea],        harmonics_modulated: 4}
+  # Added 2026-11-12 after the S0-S3 assessment (P3B_03 §3): residual month means differ between 2023 and 2024 and are not
+  # smooth in month -> common hydro-meteorological shocks, not a seasonal shape. Regional month-by-year random effects
+  # e_{r,t,m} ~ N(0, sigma_e^2), sigma_e ~ Half-N(0, 0.2^2); integrated into the annual arithmetic mean. Same selection rule.
+  S5_regional_shock:  {regional: 1, modifiers: [],                 harmonics_modulated: 0, shock: 1, shock_centre: 0}   # as fitted in Stage 3
+  # Adopted form for M1 (P3B_03 §4): shocks centred within region x year (sum-to-zero over months) -> no ridge with gamma
+  S5c_regional_shock_centred: {regional: 1, modifiers: [],         harmonics_modulated: 0, shock: 1, shock_centre: 1}
+seasonal_modifier_sd: 0.2
+shock_sd: 0.2
+
+# HSGP (MS-§4; phase_02b/specifications/standardisation_constants.json)
+hsgp:
+  boundary_factor: 1.25
+  m: [48, 59]
+  rho_min_km: 12.0
+
+compute_budget_cpu_hours:
+  spatial_pilot: 4.0       # Stage 4-6 (brief); excludes Phase 3A
+  stage3_baseline: 2.5     # bounded baseline-issue fits (stated in P3B_02/03)
+
+# Pre-specified seasonal selection rule (written 2026-11-12 before any Stage 3 fit finished):
+#  1. Predictive criterion: PSIS-LOO elpd (measurement level), differences with SE from pointwise values; Pareto k reported.
+#  2. S1_regional is the Phase 2B-specified M1 structure; it is retained unless worse than S0 by > 2 SE.
+#  3. An extension (S2 network, S3 size) is adopted only if elpd(ext) - elpd(S1) > 2 SE AND the monthly PPC
+#     (months inside the 90% interval, mean |z| by network and region x network) improves; if both qualify, the combined
+#     S4 (regional + network + size) is fitted once and adopted only if it beats the better single extension by > 2 SE.
+#  4. Training fit (lp, in-sample deviance) is not used for selection.
+seasonal_selection_rule: "PSIS-LOO > 2 SE over S1 plus improved monthly PPC; S1 default (see comment)"

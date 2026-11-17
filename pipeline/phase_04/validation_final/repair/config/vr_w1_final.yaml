@@ -1,0 +1,36 @@
+# Track A, final bounded attempt to validate setting A (W1 refit). Written BEFORE any computation of this stage.
+# Protocol: repair/reports/VR_03_W1_final_attempt_feasibility_and_protocol.md. Nothing here changes a model, data, estimand or threshold.
+scratch_dir: "~/track_a_scratch/phase_04_vr"
+budget_total_cpu_h: 15.0                 # author maximum, all stages including scoring (ledger: repair/logs/vr_cpu_ledger.jsonl)
+
+refit:                                   # VC_00 §3 specification, verbatim (copied from correction/config/vc_settings.yaml)
+  tag: vr_W1_R3
+  fold: W1
+  model: R3
+  seed: 20261115                         # same seed: chains 1-2 deterministically regenerate the preserved partial chains
+  chains: 4
+  parallel_chains: 2
+  iter_warmup: 600
+  iter_sampling: 1000
+  adapt_delta: 0.99
+  max_treedepth: 10
+  central_cpu_h: 11.85                   # measured on the terminated run: 0.81 warmup + 1000 x 0.00215 sampling per chain
+  reserve_after_refit_cpu_h: 0.95        # S3 (0.15) + minimum S4 at 1,600 draws (0.75 incl. margin)
+  max_divergences: 4                     # frozen rule: <= 0.1% of 4,000 post-warmup draws; the 5th divergence stops the fit
+  projection_min_sampling_draws: 100     # projection stop evaluated once every running chain has >= 100 sampling draws
+
+adequacy_fold:                           # frozen Phase 4B / VC_00 rules, unchanged
+  max_divergence_share: 0.001
+  min_ebfmi: 0.3
+  max_rhat_hyper: 1.05
+  mcse_share_of_clustered_se: 0.10
+  rb_threshold: 0.05
+
+scoring:
+  # S1 (W2, existing draws) and S4 (W1 refit + W1 M1-S2): all posterior draws (amendment AM2', see protocol), or
+  # 1,600 thinned draws (AM2, frozen thinning rule) if the remaining budget is below all_draws_min_remaining_cpu_h.
+  all_draws_min_remaining_cpu_h: 1.40
+  am2_min_remaining_cpu_h: 0.75
+  am2_n_draws: 1600
+  chunk_draws: 100
+  s1_cap_cpu_h: 1.5

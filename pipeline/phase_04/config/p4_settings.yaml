@@ -1,0 +1,47 @@
+# Track A — Phase 4 settings. Frozen 2026-11-15 with validation/P4_V0_frozen_validation_protocol.md, BEFORE any Phase 4 analysis.
+authoritative:
+  posterior: "~/track_a_scratch/phase_03c_f/T1_combined_draws.npz"       # 4 x 5,000 (main_R3 + T1); SHA in provenance/authoritative_reference.json
+  delta_T_draws: "~/track_a_scratch/phase_03c_f/T1_combined_delta_T_draws.npz"
+  stan_file: "phase_03c_f/stan/track_a_m2rn_r3.stan"
+  data: "~/track_a_scratch/phase_03c_f/inputs/data.json"
+  thresholds: [0.05, 0.10, 0.20]
+  model_config_source: "phase_03c_f/addendum_T1/diagnostics/T1_combined_diagnostics.json (model_config)"
+scratch_dir: "~/track_a_scratch/phase_04"
+seeds: {prediction: 20261114, folds: 20261113, ppc: 20261122, tu_mc_check: 20261131}
+
+A2_selection:
+  psi_primary: [-0.2, -0.1, 0.0, 0.1, 0.2]
+  psi_extreme: [-0.4, 0.4]
+  kappa: [1.0, 0.75, 0.5, 0.25, 0.0]
+  draws: 2000                       # evenly thinned from 20,000 (A2 is a smooth functional; MCSE reported)
+  gh_nodes: 15
+
+A3_river_length:
+  frame: "F1_inland_river & wma notna & la_hat in [0.5471933374977596, 7.62846787157966]"
+  expected: {links: 58153, km: 68822}
+  link_length: len_england_m
+  midpoint: "shapely line_interpolate_point(normalized 0.5) of the frame geometry"
+  edm_radius_m: 5000
+  region_rule: "nearest model site in the same WMA (BNG distance)"
+  draws: 500                        # frozen Phase 2B posterior_draws_for_prediction
+  gh_nodes: 15
+  tu: "exact Markov-blanket conditional given site v_tu draws; edge a = exp(-h/rho_tu) sqrt(min(1, afv_up/afv_down)); AFV = upstream channel km"
+  sensitivity: ["river term marginalised at all links", "psi curve"]
+  verification:
+    next_down_site_agreement_min: 0.99
+    h_next_abs_tol_km: 0.001
+    covariate_tol: 1.0e-6
+    mc_check_draws: 200000
+
+A4_ppc:
+  material_miss_rule: ">= 3 of 21 region x threshold cells outside the 90% interval in the same direction AND same direction in held-out calibration"
+
+A5:
+  psis_pareto_k_max: 0.7
+  hold_if_prior_shift_sd: 0.5
+
+compute:
+  fits_authorised_in_phase4: 0      # no CmdStan fit without an explicit compute decision (protocol §4)
+  priority1_cpu_h: 20.1
+  priority2_cpu_h: 9.2
+  priority3_cpu_h: 11.0

@@ -1,0 +1,78 @@
+# Track A Phase 3C — settings (written 2026-11-12, BEFORE any Phase 3C model fit).
+# Frozen priors: phase_02b/specifications/priors_and_settings.yaml + Phase 3A override (harmonics 0.3, Addendum C2)
+# + Phase 3B addendum (C1 hetero SD) + Phase 3B settings (phase_03b/config/phase3b_settings.yaml: seasonal S5c, sigma_e, sigma_om).
+version: "3C-1.0"
+date: "2026-11-12"
+
+# Local SSD scratch for CmdStan CSVs / draw archives (override with env TRACK_A_SCRATCH_3C).
+scratch_dir: "~/track_a_scratch/phase_03c"
+# Phase 3B reference draws are READ (never written) from the Phase 3B scratch directory.
+reference_scratch: "~/track_a_scratch/phase_03b"
+
+seeds:
+  stan: 20261112           # as Phase 2B / 3A / 3B
+  cv_folds: 20261113       # Phase 2B computation.seeds.cv_folds
+  subsets: 20261120        # Phase 3B (cat80 split reused for fold C1)
+  simulation: 20261130
+  prediction_mc: 20261114  # Phase 2B computation.seeds.prediction_mc
+  ppc: 20261122
+
+# Reference model (frozen; P3C_01 §2): Phase 3B tag m1s2_full
+reference:
+  tag: m1s2_full
+  season: S5c_regional_shock_centred
+  hier: 1
+  field: 1
+  wb_marginal: 1
+  network_mode: 1
+  sampling: {chains: 4, iter_warmup: 1000, iter_sampling: 1500, adapt_delta: 0.95, max_treedepth: 10}
+
+# River-network component (P3C_01). Priors fixed before fitting.
+river_network:
+  # sigma_RN ~ Half-N(0, 0.5^2): same scale as the Euclidean field and water-body SDs (Phase 2B)
+  sigma_sd: 0.5
+  # rho_RN (km) ~ InvGamma(a, b) with P(rho < 5 km) = P(rho > 300 km) = 0.02 (median 21 km); hydrological ranges
+  # are allowed to be much longer than the Euclidean prior because the T2 screen put the flow range at the boundary.
+  rho_a: 1.434612
+  rho_b: 23.967135
+  afv: up_chan_km           # additive function value: upstream channel length at the site (Phase 2 accumulation)
+  # Structure for the Bayesian model is chosen by the REML screen (P3C_01 §5) under this pre-specified rule:
+  #  TU (tail-up) is the primary candidate (it targets exactly the T1 statistic: flow-connected excess).
+  #  TD (tail-down) is added only if E+TU+TD improves on E+TU by > 10 log-likelihood units (AIC-type, 2 extra parameters)
+  #  in the screen on the M1-S2 residual site levels, with the result stable under the repaired-link sensitivity.
+  screen_rule: "TU primary; add TD only if REML loglik gain over E+TU > 10 and stable without repaired-link paths"
+
+sampling:
+  chains: 4
+  iter_warmup: 1000
+  iter_sampling: 1500
+  adapt_delta: 0.95
+  max_treedepth: 10
+
+# Targeted held-out validation (P3C_05). Pre-specified before any fold fit.
+validation:
+  folds:
+    W1: {type: waterbody_block, partition_k: 5, group: 1}   # all sites of a random 20% of water bodies, stratified by region
+    W2: {type: waterbody_block, partition_k: 5, group: 2}
+    C1: {type: mancat_block, source: "phase_03b cat80 split (seed 20261120)"}  # 20% of management catchments
+  models: [M1-S2, M2-RN]
+  sampling: {chains: 4, iter_warmup: 600, iter_sampling: 500, adapt_delta: 0.95, max_treedepth: 10}
+  # Held-out sites stay in the model as nodes WITHOUT measurements (their latent effects are drawn from the
+  # conditional prior given the training data); no held-out outcome enters any likelihood term.
+  scores:
+    primary: "site-joint log predictive density of held-out measurements (censoring-aware), quadrature over the held-out site's latent level, site-year effects and SD; 400 posterior draws"
+    secondary: ["pointwise measurement log predictive density", "randomised PIT", "site-year sample-mean exceedance Brier and log scores at 0.05/0.10/0.20", "90% interval coverage of site-year sample means"]
+  comparison_rule: "M2-RN preferred if pooled site-joint ELPD difference > 2 SE (SE over held-out sites) with no loss of calibration"
+
+compute_budget_cpu_hours:
+  build_and_verification: 4.0   # simulation recovery, subset fits, benchmarks
+  main_pilot: 8.0               # brief: one full-data M2-RN pilot
+  validation: 12.0              # separate budget: 3 folds x 2 models, reduced sampling
+  regional_offsets: 4.0         # one restricted delta_r fit with the river-network component
+
+hsgp:
+  boundary_factor: 1.25
+  m: [48, 59]
+  rho_min_km: 12.0
+  rho95_max_km: 70.0            # Phase 3B upper accuracy rule (P3B_01 §4)
+  max_cov_error: 0.05

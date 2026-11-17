@@ -1,0 +1,37 @@
+# Track A Phase 4B validation-correction stage (author approval 2026-11-16). Written BEFORE any correction run.
+# Protocol: reports/VC_00_protocol_predeclared.md. Original Phase 4B outputs are read-only; everything new is written under
+# validation_final/correction/ and ~/track_a_scratch/phase_04_vc.
+scratch_dir: "~/track_a_scratch/phase_04_vc"
+original_scratch: "~/track_a_scratch/phase_04_vf"          # original Phase 4B draws / per-draw scores (read-only)
+
+stage_cap_cpu_h: 8.0                                       # strict; all CPU (fit, scoring, checks), ledger logs/cpu_ledger.jsonl
+
+refit:
+  tag: vc_W1_R3                                            # new tag: the original vf_W1_R3 draws and diagnostics are untouched
+  fold: W1
+  model: R3                                                # same executable, data, held-out sites, inits, pilot metric, seed
+  seed: 20261115                                           # identical to the original W1 fit (no seed change, no seed search)
+  chains: 4
+  parallel_chains: 2
+  iter_warmup: 600                                         # was 300
+  iter_sampling: 1000                                      # unchanged
+  adapt_delta: 0.99                                        # was 0.98
+  max_treedepth: 10                                        # unchanged
+  central_cpu_h: 4.7                                       # range 3.9-5.6 (VC_00 §3)
+  cap_cpu_h: 6.0                                           # hard; monitor stops the chains
+
+adequacy_fold:                                             # frozen Phase 4B fold rules, unchanged
+  max_divergence_share: 0.001
+  min_ebfmi: 0.3
+  max_rhat_hyper: 1.05                                     # includes the log-scale hyperparameters
+  mcse_share_of_clustered_se: 0.10
+
+amendments:
+  AM1_rb_all_draws: {threshold: 0.05, draws: all}          # RB max |site disagreement| <= 0.05 on all posterior draws
+  AM2_scoring_draws: {n_draws: 1600, folds: [W1, W2]}      # scoring draws 400 -> 1,600, only if VC_00 §5 projection allows
+
+projection_rule:                                           # VC_00 §5
+  rescore_if_central_le: 0.090
+  and_conservative_lt: 0.10
+rescore_cap_cpu_h: 1.6                                     # per fold
+reserve_checks_cpu_h: 0.3

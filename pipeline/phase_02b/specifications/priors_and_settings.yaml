@@ -1,0 +1,74 @@
+# Track A Phase 2B — frozen priors and computational settings (companion to model_specification.md)
+# Scale: log concentration (mg P/L). Covariates standardised with specifications/standardisation_constants.json.
+version: "2B-1.0"
+date: "2026-11-12"
+
+data:
+  eligibility_rule: "primary: n >= 6 measurements and >= 3 calendar quarters per site-year (Pilot 01)"
+  years: [2023, 2024]
+  networks: {R: "RSN (official ARD list)", M: "MS purpose code, not on RSN list"}
+  primary_population: "matched sites (Phase 2 match class A/B/C)"
+  target_T: "specifications/target_T_siteyears.csv"   # 2,256 site-years
+  thresholds_mgP_per_L: [0.05, 0.10, 0.20]
+  censoring: "observation-specific left censoring at reported limit L_ij"
+
+likelihood:
+  family: lognormal
+  annual_mean_quadrature_points: 24
+  include_short_term_variance_in_mean: true      # sensitivity A0: false
+  reporting_resolution_interval: false           # sensitivity R1: true
+
+priors:
+  alpha:        {dist: normal, mu: -2.5, sigma: 1.0}
+  beta_logarea: {dist: normal, mu: 0.0, sigma: 0.5}
+  beta_logarea_sq: {dist: normal, mu: 0.0, sigma: 0.25}
+  beta_edm:     {dist: normal, mu: 0.0, sigma: 0.5}
+  beta_geology: {dist: normal, mu: 0.0, sigma: 0.5}    # Siliceous, Organic, Unknown vs Calcareous
+  gamma_2024:   {dist: normal, mu: 0.0, sigma: 0.3}
+  harmonics_national: {dist: normal, mu: 0.0, sigma: 0.5}   # a1,b1,a2,b2
+  tau_season_region:  {dist: half_normal, sigma: 0.2}
+  delta_bar:    {dist: normal, mu: 0.0, sigma: 0.5}
+  tau_delta:    {dist: half_normal, sigma: 0.25}
+  zeta_year_network: {dist: normal, mu: 0.0, sigma: 0.25}   # M2-Y only
+  interactions_network: {dist: normal, mu: 0.0, sigma: 0.25} # M2-I only
+  sigma_site:      {dist: half_normal, sigma: 1.0}
+  sigma_siteyear:  {dist: half_normal, sigma: 0.3}
+  sigma_wma:       {dist: half_normal, sigma: 0.5}
+  sigma_mancat:    {dist: half_normal, sigma: 0.5}
+  sigma_waterbody: {dist: half_normal, sigma: 0.5}
+  sigma_field:     {dist: half_normal, sigma: 0.5}
+  rho_field_km:    {dist: inv_gamma, alpha: 3.120, beta: 92.511}   # P(<12)=P(>150)=0.02
+  sigma_resid:     {dist: half_normal, sigma: 0.7}
+  fallback_variance_partition: {sigma_total: {dist: half_normal, sigma: 1.0}, dirichlet: [2, 2, 2, 2]}
+
+spatial:
+  primary: S2   # hierarchy (WMA, management catchment, water body) + Euclidean HSGP field
+  benchmark: S1 # hierarchy only
+  hsgp: {kernel: squared_exponential, centre_km: [394.83, 333.36], half_range_km: [259.30, 320.08],
+         boundary_factor: 1.25, m: [48, 59], rho_min_km: 12.0}
+  s3_trigger: "flow-connected (different water body, <25 km) minus non-connected mean site-effect product > 0.10 in S2 PPC"
+
+sensitivity:
+  psi_rsn_residual_selection_log: {primary_grid: [-0.2, -0.1, 0.0, 0.1, 0.2], extreme: [-0.4, 0.4]}
+  kappa_ms_selection_share: [0.0, 0.25, 0.5, 0.75, 1.0]
+  scenarios: [RSN_only_parameters, M2-Y, M2-I, M2-X, A0, R1, sigma_by_network, all_site_years_any_rule, ignore_site_year_effects]
+
+computation:
+  engine: CmdStan via CmdStanPy           # fallback: NumPyro (JAX already installed)
+  chains: 4
+  iter_warmup: 1000
+  iter_sampling: 1000
+  adapt_delta: 0.9
+  max_treedepth: 10
+  seeds: {stan: 20261112, cv_folds: 20261113, prediction_mc: 20261114}
+  threads_per_chain: 1
+  mc_draws_new_site_effects: 200
+  posterior_draws_for_prediction: 500
+
+diagnostics_acceptance:
+  rhat_max: 1.01
+  ess_bulk_min: 400
+  ess_tail_min: 400
+  divergences_max: 0
+  ebfmi_min: 0.3
+  pareto_k_warn: 0.7
