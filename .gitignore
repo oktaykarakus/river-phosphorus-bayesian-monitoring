@@ -1,0 +1,17 @@
+# Raw/derived data and run outputs are never committed (see data/README.md)
+__pycache__/
+*.pyc
+.DS_Store
+pipeline/**/data_raw/
+pipeline/**/raw/
+pipeline/**/data/
+pipeline/**/data_processed/
+pipeline/**/inputs/
+pipeline/**/diagnostics/
+pipeline/**/tables/
+pipeline/**/figures/
+pipeline/**/provenance/
+pipeline/**/logs/
+*.npz
+*.parquet
+*.gpkg
