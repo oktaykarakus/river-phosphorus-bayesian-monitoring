@@ -3,6 +3,7 @@ message: "If you use this code or these results, please cite the paper listed un
 title: "Where We Monitor Matters: Monitoring-Network Composition and Bayesian River-Network Inference for Phosphorus Exceedance in English Rivers (code and result summaries)"
 type: software
 license: MIT
+repository-code: "https://github.com/oktaykarakus/river-phosphorus-bayesian-monitoring"
 authors:
   - family-names: "Karakuş"
     given-names: "Oktay"

@@ -5,9 +5,9 @@
 | File | Bytes | SHA-256 |
 |---|---:|---|
 | `.gitignore` | 341 | `16ff8c83c3ee0481e688b46baf7e1eb990e5c019926339108fcf02d30aef5e8d` |
-| `CITATION.cff` | 1278 | `b8945d650462079b08df09553b3f74e1f1a4900931fcef218a56e00e944ad5c7` |
+| `CITATION.cff` | 1366 | `ff202348cfbde1f465c6e53a91ab1faa5befe09eec2d508fd52664a7e5a89874` |
 | `LICENSE` | 1090 | `281adea81aa254ae2c337a0ee05fc859c3820be2f2db1338a7a174a575c4afb7` |
-| `README.md` | 11791 | `31ac21fdedbf678f230a6541d09ec81e647d1ecd2f654ea7e1539d78765f3bdf` |
+| `README.md` | 11880 | `f37de0dc81fdff0fba84f9d3d5b91172b2103084058a5329ff0a2f211357e42f` |
 | `data/README.md` | 3800 | `dd3cf4f0e4b781914c03056fa992f7e3d017afa538fb6f9e75d4a6237042aecf` |
 | `pipeline/phase_02/scripts/01_provenance.py` | 2527 | `d369127088e6adde9d77ecf9799782545a8f740f9451ca9afce3994725efcf3f` |
 | `pipeline/phase_02/scripts/02_build_frame.py` | 20669 | `e104e879f2c5c46e2c7f28fd503a173e5e1ee2c940fe31c8d00e6dfb41fdb633` |

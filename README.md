@@ -19,7 +19,7 @@ The paper has not yet been published, and no DOI exists yet. Until it is publish
 
 > Karakuş, O., Eyüpoğlu, C. Where We Monitor Matters: Monitoring-Network Composition and Bayesian River-Network Inference for Phosphorus Exceedance in English Rivers. Manuscript in preparation for *Ecological Indicators*.
 
-Machine-readable metadata is in [`CITATION.cff`](CITATION.cff). Publication details and a persistent identifier will be added once they exist.
+Code repository: <https://github.com/oktaykarakus/river-phosphorus-bayesian-monitoring>. Machine-readable metadata is in [`CITATION.cff`](CITATION.cff). Publication details and a persistent identifier will be added once they exist.
 
 ## Scientific overview
 
